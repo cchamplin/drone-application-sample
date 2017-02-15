@@ -11,6 +11,19 @@ deploy:
     cmd: "drush vset site_offline TRUE --root=/var/application/www >> /mnt/shared-storage/logs/deploy-log.log 2>&1"
     exec_timeout: 600
 
+# Perform a pre deploy db backup
+# Log to /mnt/shared-storage/logs
+deploy:
+  rancher-drone-execute:
+    image: eastest/drone-rancher-execute
+    url: $$RANCHER_URL
+    access_key: $$RANCHER_ACCESS_KEY
+    secret_key: $$RANCHER_SECRET_KEY
+    service: $$SERVICE_NAME
+    # Get the site name using drush, removing the field name, spaces and single quotes using sed
+    cmd: "TMP_SITE_NAME=`drush vget site_name --root=/var/application/www`; TMP_SHORT_NAME=`echo $TMP_SITE_NAME|sed -e s/^site_name://g -e s/\\'//g -e s/\\ //g`; drush sql-dump --result-file=/mnt/shared-storage/backups/`echo $TMP_SHORT_NAME`_predeploy_`date +%Y-%m-%d_%H:%M:%S`.sql --root=/var/application/www >> /mnt/shared-storage/logs/deploy-log.log 2>&1"
+    exec_timeout: 600
+
 # Deploy the updated code base to the Rancher environment
 # permform a rolling restart of containers which will automatically
 # pull down the code.
@@ -48,6 +61,18 @@ deploy:
     cmd: "drush cc all -y --root=/var/application/www >> /mnt/shared-storage/logs/deploy-log.log 2>&1"
     exec_timeout: 600
 
+# Perform a post deploy db backup
+# Log to /mnt/shared-storage/logs
+deploy:
+  rancher-drone-execute:
+    image: eastest/drone-rancher-execute
+    url: $$RANCHER_URL
+    access_key: $$RANCHER_ACCESS_KEY
+    secret_key: $$RANCHER_SECRET_KEY
+    service: $$SERVICE_NAME
+    # Get the site name using drush, removing the field name, spaces and single quotes using sed
+    cmd: "TMP_SITE_NAME=`drush vget site_name --root=/var/application/www`; TMP_SHORT_NAME=`echo $TMP_SITE_NAME|sed -e s/^site_name://g -e s/\\'//g -e s/\\ //g`; drush sql-dump --result-file=/mnt/shared-storage/backups/`echo $TMP_SHORT_NAME`_postdeploy_`date +%Y-%m-%d_%H:%M:%S`.sql --root=/var/application/www >> /mnt/shared-storage/logs/deploy-log.log 2>&1"
+    exec_timeout: 600
 
 # Take the site out of maintenance mode
 # Log to /mnt/shared-storage/logs
@@ -60,3 +85,16 @@ deploy:
     service: $$SERVICE_NAME
     cmd: "drush vset site_offline FALSE --root=/var/application/www >> /mnt/shared-storage/logs/deploy-log.log 2>&1"
     exec_timeout: 600
+
+# Send notification of deployment success 
+notify:
+  email:
+    from: usdasmtp@gmail.com
+    host: $$SMTP_HOST
+    username: $$SMTP_USER
+    password: $$SMTP_PASSWORD
+    recipients:
+      - Jerry.Eshbaugh@ocio.usda.gov
+      - sean.schoolcraft@ocio.usda.gov
+      - caleb.champlin@ocio.usda.gov
+
