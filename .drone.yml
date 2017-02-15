@@ -1,5 +1,6 @@
 # Place the site into maintenance mode
 # Log to /mnt/shared-storage/logs
+
 deploy:
   rancher-drone-execute:
     image: eastest/drone-rancher-execute
